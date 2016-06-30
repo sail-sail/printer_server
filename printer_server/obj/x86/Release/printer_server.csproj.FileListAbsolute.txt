@@ -1,0 +1,4 @@
+D:\PrintDirectory\printer_server\printer_server\bin\Release\printer_server.exe
+D:\PrintDirectory\printer_server\printer_server\bin\Release\printer_server.pdb
+D:\PrintDirectory\printer_server\printer_server\obj\x86\Release\printer_server.exe
+D:\PrintDirectory\printer_server\printer_server\obj\x86\Release\printer_server.pdb
