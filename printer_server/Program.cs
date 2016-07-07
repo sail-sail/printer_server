@@ -17,6 +17,7 @@ namespace printer_server
 
         private static string dirStr = "D:/PrintDirectory/";
         private static string prn_logStr = "D:/PrintDirectory/prn_log/";
+        private static string prn_errorStr = "D:/PrintDirectory/prn_error/";
 
         static void Main(string[] args)
         {
@@ -30,15 +31,23 @@ namespace printer_server
             exec();
         }
 
-        private static void printExcel(string excelPath,int sheetNum)
+        private static void printExcel(string excelPath)
         {
-            if (sheetNum < 1) sheetNum = 1;
             Microsoft.Office.Interop.Excel.Application xApp = new Microsoft.Office.Interop.Excel.Application();
             xApp.Visible = false;
             Microsoft.Office.Interop.Excel.Workbook xBook = xApp.Workbooks._Open(excelPath);
+            Microsoft.Office.Interop.Excel.Worksheet xSheet = null;
             try
             {
-                Microsoft.Office.Interop.Excel.Worksheet xSheet = (Microsoft.Office.Interop.Excel.Worksheet)xBook.Sheets[sheetNum];
+                try
+                {
+                    xApp.Run("Workbook_Open");
+                }
+                catch (Exception) 
+                { 
+                    
+                }
+                xSheet = (Microsoft.Office.Interop.Excel.Worksheet)xBook.ActiveSheet;
                 xSheet.PrintOut(1, 1, 1, false);
             }
             catch (Exception e)
@@ -49,6 +58,11 @@ namespace printer_server
             {
                 xBook.Close(false);
                 xApp.Quit();
+                System.Runtime.InteropServices.Marshal.ReleaseComObject(xApp);
+                xSheet = null;
+                xBook = null;
+                xApp = null;
+                GC.Collect();
             }
         }
 
@@ -68,6 +82,10 @@ namespace printer_server
                     {
                         Directory.CreateDirectory(prn_logStr);
                     }
+                    if (!Directory.Exists(prn_errorStr))
+                    {
+                        Directory.CreateDirectory(prn_errorStr);
+                    }
                     DirectoryInfo dirInfo = new DirectoryInfo(dirStr);
                     FileSystemInfo[] fileArr = dirInfo.GetFileSystemInfos();
                     for (int i = 0; i < fileArr.Length; i++)
@@ -75,7 +93,7 @@ namespace printer_server
                         FileInfo file = fileArr[i] as FileInfo;
                         if (file == null || file.Attributes == FileAttributes.Hidden) continue;
                         string extname = file.Name.Substring(file.Name.LastIndexOf(".")).ToLower();
-                        if (extname != ".xlsx") continue;
+                        if (extname != ".xlsx" && extname != ".xlsm") continue;
                         if (file.Name.Substring(0, 2) == "~$") continue;
                         string[] arr = file.Name.Split('$');
                         if (arr.Length != 3) continue;
@@ -129,13 +147,31 @@ namespace printer_server
                             log(file.FullName);
                             int reint = SetDefaultPrinter(defPrtr);
                             if (reint == 0) throw new Exception("设置默认打印机 " + defPrtr + " 失败!");
-                            printExcel(file.FullName,sheetNum);
                             try
                             {
-                                string logDir = prn_logStr + System.DateTime.Now.ToString("d");
+                                printExcel(file.FullName);
+                            }
+                            catch (Exception e4)
+                            {
+                                if (File.Exists(prn_errorStr + "/" + file.Name))
+                                {
+                                    File.Delete(prn_errorStr + "/" + file.Name);
+                                    log("File.Delete:" + prn_errorStr + "/" + file.Name);
+                                }
+                                file.MoveTo(prn_errorStr + "/" + file.Name);
+                                throw e4;
+                            }
+                            try
+                            {
+                                string logDir = prn_logStr + System.DateTime.Now.ToString("yyyy-MM-dd");
                                 if (!Directory.Exists(logDir))
                                 {
                                     Directory.CreateDirectory(logDir);
+                                }
+                                if (File.Exists(logDir + "/" + file.Name))
+                                {
+                                    File.Delete(logDir + "/" + file.Name);
+                                    log("File.Delete:" + logDir + "/" + file.Name);
                                 }
                                 file.MoveTo(logDir + "/" + file.Name);
                             }
@@ -144,7 +180,7 @@ namespace printer_server
                                 FileStream fs = new FileStream(prn_logStr + "/PrintFileArr.log", FileMode.OpenOrCreate, FileAccess.Write);
                                 StreamWriter sw = new StreamWriter(fs);
                                 sw.BaseStream.Seek(0, SeekOrigin.End);
-                                sw.WriteLine("[" + DateTime.Now.ToString() + "]|" + filename);
+                                sw.WriteLine("[" + DateTime.Now.ToString("yyyy-MM-dd HH:MM:ss") + "]|" + filename);
                                 sw.Flush();
                                 sw.Close();
                                 fs.Close();
