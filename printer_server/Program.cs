@@ -96,21 +96,14 @@ namespace printer_server
                         if (extname != ".xlsx" && extname != ".xlsm") continue;
                         if (file.Name.Substring(0, 2) == "~$") continue;
                         string[] arr = file.Name.Split('$');
-                        if (arr.Length != 3) continue;
+                        if (arr.Length != 2) continue;
                         Thread.Sleep(100);
-                        int sheetNum = 1;
-                        try
-                        {
-                            sheetNum = int.Parse(arr[1]);
-                        }
-                        catch (Exception e3)
-                        {
-                            logErr(e3.Message);
-                        }
                         
                         //默认打印机
-                        string defPrtr = arr[2].Substring(0, arr[2].Length - extname.Length);
+                        string defPrtr = arr[1].Substring(0, arr[1].Length - extname.Length);
                         if (String.IsNullOrWhiteSpace(defPrtr)) continue;
+                        byte[] defPrtrByte = Convert.FromBase64String(defPrtr);
+                        defPrtr = Encoding.UTF8.GetString(defPrtrByte);
                         //文件名
                         string filename = arr[0]+extname;
                         if (String.IsNullOrWhiteSpace(filename)) continue;
@@ -144,11 +137,11 @@ namespace printer_server
                         if (isHas) continue;
                         try
                         {
-                            log(file.FullName);
-                            int reint = SetDefaultPrinter(defPrtr);
-                            if (reint == 0) throw new Exception("设置默认打印机 " + defPrtr + " 失败!");
                             try
                             {
+                                log(file.FullName);
+                                int reint = SetDefaultPrinter(defPrtr);
+                                if (reint == 0) throw new Exception("设置默认打印机 " + defPrtr + " 失败!");
                                 printExcel(file.FullName);
                             }
                             catch (Exception e4)
@@ -214,6 +207,7 @@ namespace printer_server
 
             foreach (ManagementObject mo in queryCollection)
             {
+                //Console.WriteLine(mo["Name"].ToString());
                 if (string.Compare(mo["Name"].ToString(), PrinterName, true) == 0)
                 {
                     mo.InvokeMethod("SetDefaultPrinter", null);
