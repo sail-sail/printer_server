@@ -96,14 +96,19 @@ namespace printer_server
                         if (extname != ".xlsx" && extname != ".xlsm") continue;
                         if (file.Name.Substring(0, 2) == "~$") continue;
                         string[] arr = file.Name.Split('$');
-                        if (arr.Length != 2) continue;
                         Thread.Sleep(100);
                         
                         //默认打印机
-                        string defPrtr = arr[1].Substring(0, arr[1].Length - extname.Length);
-                        if (String.IsNullOrWhiteSpace(defPrtr)) continue;
-                        byte[] defPrtrByte = Convert.FromBase64String(defPrtr);
-                        defPrtr = Encoding.UTF8.GetString(defPrtrByte);
+                        string defPrtr = null;
+                        if (arr.Length == 2)
+                        {
+                            defPrtr = arr[1].Substring(0, arr[1].Length - extname.Length);
+                            if (!String.IsNullOrWhiteSpace(defPrtr))
+                            {
+                                byte[] defPrtrByte = Convert.FromBase64String(defPrtr);
+                                defPrtr = Encoding.UTF8.GetString(defPrtrByte);
+                            }
+                        }
                         //文件名
                         string filename = arr[0]+extname;
                         if (String.IsNullOrWhiteSpace(filename)) continue;
@@ -140,8 +145,11 @@ namespace printer_server
                             try
                             {
                                 log(file.FullName);
-                                int reint = SetDefaultPrinter(defPrtr);
-                                if (reint == 0) throw new Exception("设置默认打印机 " + defPrtr + " 失败!");
+                                if (!String.IsNullOrWhiteSpace(defPrtr))
+                                {
+                                    int reint = SetDefaultPrinter(defPrtr);
+                                    if (reint == 0) throw new Exception("设置默认打印机 " + defPrtr + " 失败!");
+                                }
                                 printExcel(file.FullName);
                             }
                             catch (Exception e4)
